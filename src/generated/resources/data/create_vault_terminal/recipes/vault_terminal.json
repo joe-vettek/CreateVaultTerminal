@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "safe_reader",
+  "key": {
+    "x": {
+      "tag": "forge:glass"
+    },
+    "y": {
+      "tag": "forge:ingots/iron"
+    },
+    "z": {
+      "tag": "minecraft:logs"
+    }
+  },
+  "pattern": [
+    " x ",
+    " y ",
+    " z "
+  ],
+  "result": {
+    "item": "create_vault_terminal:vault_terminal"
+  },
+  "show_notification": true
+}
