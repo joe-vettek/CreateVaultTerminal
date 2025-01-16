@@ -14,8 +14,8 @@ public class Lang_ZH extends LangHelper {
 
     @Override
     protected void addTranslations() {
-        add(ModContents.vault_terminal.get(), "保险箱读取器");
-        add("menu.create_safe_reader.tittle","保险箱");
+        add(ModContents.vault_terminal.get(), "保险箱终端");
+        add("menu.create_safe_reader.tittle","读取中 - %s");
 
     }
 

@@ -1,4 +1,4 @@
 {
-  "block.create_vault_terminal.vault_terminal": "保险箱读取器",
-  "menu.create_safe_reader.tittle": "保险箱"
+  "block.create_vault_terminal.vault_terminal": "保险箱终端",
+  "menu.create_safe_reader.tittle": "读取中 - %s"
 }

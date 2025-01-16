@@ -82,11 +82,12 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
             }
             if (should) {
                 itemStack = itemStack.copyWithCount(1);
-                int pairPos = byIds.getInt(itemStack.getDescriptionId());
+                String itemStackString = itemStack.getDescriptionId()+itemStack.getTag();
+                int pairPos = byIds.getInt(itemStackString);
                 if (pairPos == -1) {
                     int[] originalIndexs = new int[]{i};
                     this.pairList.add(Pair.of(originalIndexs, itemStack));
-                    byIds.put(itemStack.getDescriptionId(), pairList.size() - 1);
+                    byIds.put(itemStackString, pairList.size() - 1);
                 } else {
                     int[] originalIndexs = pairList.get(pairPos).first();
                     int[] originalIndexsNew = new int[originalIndexs.length + 1];

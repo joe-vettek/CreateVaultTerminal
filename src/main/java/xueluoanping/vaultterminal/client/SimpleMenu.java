@@ -70,7 +70,9 @@ public class SimpleMenu extends AbstractContainerMenu {
         this.blockEntity = blockEntity1;
 
 
-        if (blockEntity != null) {
+        // TODO:这段代码是因为机械动力的保险箱不同步数据到客户端
+        //  因此需要那边同步，但是这里的话，有些容器会同步，因此要注意，后续清理一下即可
+        if (blockEntity != null && !world.isClientSide()) {
             LazyOptional<IItemHandler> capability = blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER);
             if (capability.resolve().isPresent()) {
                 List<ItemStack> itemStacks = new ArrayList<>();
@@ -82,13 +84,7 @@ public class SimpleMenu extends AbstractContainerMenu {
                     }
                 }
                 this.itemStacks.addAll(itemStacks);
-
             }
-            // for (i = 0; i < 3; ++i) {
-            //     for (int j = 0; j < 9; ++j) {
-            //         this.containerSlots.add(this.addSlot(new Slot(playerInventory, j + i * 9 + 9, 8 + j * 18, 117 + i * 18)));
-            //     }
-            // }
         }
 
         this.isRemote = world.isClientSide();
@@ -109,8 +105,8 @@ public class SimpleMenu extends AbstractContainerMenu {
     public boolean stillValid(@NotNull Player pPlayer) {
         // TODO: 比较物品是否发生变化
         return blockEntity != null
-                &&pPlayer.blockPosition().getCenter().distanceToSqr(blockPos.getCenter())<=48
-                &&blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent();
+                && pPlayer.blockPosition().getCenter().distanceToSqr(blockPos.getCenter()) <= 48
+                && blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent();
     }
 
     @Override
@@ -166,7 +162,7 @@ public class SimpleMenu extends AbstractContainerMenu {
         if (pPlayer.getCommandSenderWorld() instanceof ServerLevel serverLevel) {
             BlockState blockState = serverLevel.getBlockState(blockPos);
             if (blockState.getBlock() instanceof ReaderBlock) {
-                serverLevel.setBlockAndUpdate(blockPos,blockState.setValue(ReaderBlock.OPEN, false));
+                serverLevel.setBlockAndUpdate(blockPos, blockState.setValue(ReaderBlock.OPEN, false));
             }
         }
     }

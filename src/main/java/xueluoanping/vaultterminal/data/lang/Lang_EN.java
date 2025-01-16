@@ -14,7 +14,7 @@ public class Lang_EN extends LangHelper {
     @Override
     protected void addTranslations() {
         add(ModContents.vault_terminal.get(), "Vault Terminal");
-        add("menu.create_safe_reader.tittle", "Vault");
+        add("menu.create_safe_reader.tittle", "Connected - %s");
     }
 
 

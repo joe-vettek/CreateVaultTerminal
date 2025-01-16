@@ -11,7 +11,9 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -63,17 +65,23 @@ public class ReaderBlock extends SimpleHorizontalBlock {
 
     @Override
     public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit) {
-        if (!pState.getValue(OPEN))
-        {
+        if (!pState.getValue(OPEN)) {
             if (pPlayer.getItemInHand(pHand).isEmpty()
                     && pPlayer instanceof ServerPlayer serverPlayer) {
                 pLevel.setBlockAndUpdate(pPos, pState.setValue(OPEN, true));
+
                 Direction value = pState.getValue(FACING);
+                BlockState blockState = pLevel.getBlockState(pPos.relative(value.getOpposite()));
                 NetworkHooks.openScreen(
                         serverPlayer, new MenuProvider() {
                             @Override
                             public @NotNull Component getDisplayName() {
-                                return Component.translatable("menu.create_safe_reader.tittle");
+                                Item item = Item.byBlock(blockState.getBlock());
+                                if (blockState.hasBlockEntity()&&item!=Items.AIR) {
+                                    return item.getName(item.getDefaultInstance());
+                                }
+                                return Component.empty();
+                                // return Component.translatable("menu.create_safe_reader.tittle");
                             }
 
                             @Override
