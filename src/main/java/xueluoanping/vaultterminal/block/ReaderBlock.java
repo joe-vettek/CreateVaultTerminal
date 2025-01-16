@@ -63,7 +63,8 @@ public class ReaderBlock extends SimpleHorizontalBlock {
 
     @Override
     public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit) {
-        if (!pState.getValue(OPEN)) {
+        if (!pState.getValue(OPEN))
+        {
             if (pPlayer.getItemInHand(pHand).isEmpty()
                     && pPlayer instanceof ServerPlayer serverPlayer) {
                 pLevel.setBlockAndUpdate(pPos, pState.setValue(OPEN, true));

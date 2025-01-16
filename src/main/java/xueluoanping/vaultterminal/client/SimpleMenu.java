@@ -19,6 +19,7 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import org.jetbrains.annotations.NotNull;
 import xueluoanping.vaultterminal.ModContents;
+import xueluoanping.vaultterminal.SafeReader;
 import xueluoanping.vaultterminal.block.ReaderBlock;
 
 import javax.annotation.Nullable;
@@ -105,14 +106,15 @@ public class SimpleMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean stillValid(Player pPlayer) {
+    public boolean stillValid(@NotNull Player pPlayer) {
         // TODO: 比较物品是否发生变化
-        return blockEntity != null &&
-                blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent();
+        return blockEntity != null
+                &&pPlayer.blockPosition().getCenter().distanceToSqr(blockPos.getCenter())<=48
+                &&blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent();
     }
 
     @Override
-    public boolean clickMenuButton(Player pPlayer, int pId) {
+    public boolean clickMenuButton(@NotNull Player pPlayer, int pId) {
         if (pId > -1 && pId < itemStacks.size()
                 && blockEntity != null
                 && blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().isPresent()) {
