@@ -7,16 +7,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
-import net.minecraft.client.gui.screens.inventory.StonecutterScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.BundlePacket;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
+import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.NotNull;
-import xueluoanping.vaultterminal.SafeReader;
+import xueluoanping.vaultterminal.network.GiveItemMessage;
+import xueluoanping.vaultterminal.network.NetworkUtil;
+import xueluoanping.vaultterminal.network.SimpleNetworkHandler;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -31,9 +35,15 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
     private int startIndex = 0;
     private EditBox nameEdit;
 
-    private final List<Pair<int[], ItemStack>> pairList = new ArrayList<>();
+    private final List<Pair<int[], ItemStack>> itemsHolder = new ArrayList<>();
 
     private boolean isDragInScroll = false;
+    private boolean isShiftPressed = false;
+
+    public static final int MAX_ITEMS_IN_LINE = 4;
+    public static final int MAX_LINES_SHOWN = 3;
+    public static final int MAX_ITEMS_SHOWN = MAX_ITEMS_IN_LINE * MAX_LINES_SHOWN;
+
 
     public SimpleScreen(SimpleMenu menu, Inventory playerInv, Component name) {
         super(menu, playerInv, name);
@@ -52,21 +62,22 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
         this.nameEdit = new EditBox(this.font, this.leftPos + 141, this.topPos + 4, 30, font.lineHeight + 2, Component.translatable("addServer.enterName"));
         this.nameEdit.setValue("");
         this.nameEdit.setResponder((string) -> {
-            this.updateAddButtonStatus();
+            this.updateSearchStatus();
         });
         this.addWidget(this.nameEdit);
         // init Status
-        updateAddButtonStatus();
+        updateSearchStatus();
     }
 
-    private void updateAddButtonStatus() {
+    private void updateSearchStatus() {
         String name = nameEdit.getValue();
-        this.pairList.clear();
-        int i = 0;
+        this.itemsHolder.clear();
         boolean isEmpty = name.isEmpty();
         String nameUse = name.toLowerCase(Locale.ROOT);
         Object2IntArrayMap<String> byIds = new Object2IntArrayMap<>();
         byIds.defaultReturnValue(-1);
+        int i = 0;
+        int count = 0;
         for (ItemStack itemStack : this.menu.itemStacks) {
             boolean should = isEmpty;
             if (!should) {
@@ -81,28 +92,31 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
                 should = stringBuilder.toString().toLowerCase(Locale.ROOT).contains(nameUse);
             }
             if (should) {
+                count += itemStack.getCount();
                 itemStack = itemStack.copyWithCount(1);
-                String itemStackString = itemStack.getDescriptionId()+itemStack.getTag();
+                String itemStackString = itemStack.getDescriptionId() + " " + itemStack.getTag();
                 int pairPos = byIds.getInt(itemStackString);
                 if (pairPos == -1) {
                     int[] originalIndexs = new int[]{i};
-                    this.pairList.add(Pair.of(originalIndexs, itemStack));
-                    byIds.put(itemStackString, pairList.size() - 1);
+                    this.itemsHolder.add(Pair.of(originalIndexs, itemStack));
+                    byIds.put(itemStackString, itemsHolder.size() - 1);
                 } else {
-                    int[] originalIndexs = pairList.get(pairPos).first();
+                    int[] originalIndexs = itemsHolder.get(pairPos).first();
                     int[] originalIndexsNew = new int[originalIndexs.length + 1];
                     System.arraycopy(originalIndexs, 0, originalIndexsNew, 0, originalIndexs.length);
                     originalIndexsNew[originalIndexs.length] = i;
-                    this.pairList.set(pairPos, Pair.of(originalIndexsNew, itemStack));
+                    this.itemsHolder.set(pairPos, Pair.of(originalIndexsNew, itemStack));
                 }
             }
             i++;
         }
+        byIds.clear();
         // if(getMaxStartLine()<=0){
         //     startIndex=0;
         // }
-        if (!isEmpty)
+        if (!isEmpty) {
             startIndex = 0;
+        }
     }
 
     @Override
@@ -115,15 +129,14 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
 
         int l = this.leftPos + 52;
         int i1 = this.topPos + 14;
-        int line_count = 4;
 
-        int itemSelectIndexInReal = getItemSelectIndexInReal(pMouseX, pMouseY);
-        for (int i = 0; i + startIndex < this.pairList.size() && i < 12; i++) {
-            Pair<int[], ItemStack> stackPair = this.pairList.get(i + startIndex);
+        int[] itemSelectIndexInReal = getItemSelectIndexInReal(pMouseX, pMouseY);
+        for (int i = 0; i + startIndex < this.itemsHolder.size() && i < MAX_ITEMS_SHOWN; i++) {
+            Pair<int[], ItemStack> stackPair = this.itemsHolder.get(i + startIndex);
             int ih = this.imageHeight + 33;
-            int pX = (i % line_count) * 16 + l;
-            int pY = i / line_count * 18 + i1 + 1;
-            if (itemSelectIndexInReal == stackPair.first()[0]) {
+            int pX = (i % MAX_ITEMS_IN_LINE) * 16 + l;
+            int pY = i / MAX_ITEMS_IN_LINE * 18 + i1 + 1;
+            if (itemSelectIndexInReal == stackPair.first()) {
                 pGuiGraphics.blit(BG_LOCATION, pX, pY, 0, ih - 33 + 18, 16, 18);
             } else {
                 pGuiGraphics.blit(BG_LOCATION, pX, pY, 0, ih - 33, 16, 18);
@@ -139,28 +152,30 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
                 for (int i2 : stackPair.first()) {
                     count += this.menu.itemStacks.get(i2).getCount();
                 }
-                String countS;
-                if (count > 99 * 1000000) {
-                    countS = "99m";
-                } else if (count > 999999) {
-                    countS = count / 1000000 + "m";
-                } else if (count > 999) {
-                    countS = count / 1000 + "k";
-                } else {
-                    countS = Integer.toString(count);
-                }
-                float sc = 0.5f;
-                float nsc = 1 / sc;
-                pGuiGraphics.pose().scale(sc, sc, 0);
+                if (count > 1) {
+                    String countS;
+                    if (count > 99 * 1000000) {
+                        countS = "99m";
+                    } else if (count > 999999) {
+                        countS = count / 1000000 + "m";
+                    } else if (count > 999) {
+                        countS = count / 1000 + "k";
+                    } else {
+                        countS = Integer.toString(count);
+                    }
+                    float sc = 0.5f;
+                    float nsc = 1 / sc;
+                    pGuiGraphics.pose().scale(sc, sc, 0);
 
-                pGuiGraphics.drawString(font, countS, (int) ((pX + 16) * nsc - font.width(countS)), (int) ((pY + 18) * nsc - font.lineHeight), Color.WHITE.getRGB());
+                    pGuiGraphics.drawString(font, countS, (int) ((pX + 16) * nsc - font.width(countS)), (int) ((pY + 18) * nsc - font.lineHeight), Color.WHITE.getRGB());
+                }
             }
             pGuiGraphics.pose().popPose();
         }
 
         int k = (int) (41.0F * (Mth.clamp(startIndex / (getMaxStartLine() * 4f), 0f, 1f)));
         pGuiGraphics.blit(BG_LOCATION, lp + 119, tp + 15 + k, 176, 0, 12, 15);
-        if (pairList.size() < 12) {
+        if (itemsHolder.size() < 12) {
             pGuiGraphics.fill(lp + 119, tp + 15 + k, lp + 119 + 12, tp + 15 + 15, 0xccAAAAAA);
         }
 
@@ -178,9 +193,18 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
         InputConstants.Key mouseKey = InputConstants.getKey(pKeyCode, pScanCode);
         if (getFocused() != null && this.minecraft.options.keyInventory.isActiveAndMatches(mouseKey))
             return false;
+        if (mouseKey.getName().endsWith("shift"))
+            isShiftPressed = true;
         return super.keyPressed(pKeyCode, pScanCode, pModifiers);
     }
 
+    @Override
+    public boolean keyReleased(int pKeyCode, int pScanCode, int pModifiers) {
+        InputConstants.Key mouseKey = InputConstants.getKey(pKeyCode, pScanCode);
+        if (mouseKey.getName().endsWith("shift"))
+            isShiftPressed = false;
+        return super.keyReleased(pKeyCode, pScanCode, pModifiers);
+    }
 
     @Override
     public boolean mouseScrolled(double pMouseX, double pMouseY, double pDelta) {
@@ -188,9 +212,9 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
         if (pMouseX > leftPos && pMouseX < leftPos + imageWidth
                 && pMouseY > topPos && pMouseY < topPos + imageHeight) {
             if (pDelta > 0) {
-                startIndex -= 4;
+                startIndex -= MAX_ITEMS_IN_LINE;
             } else {
-                startIndex += 4;
+                startIndex += MAX_ITEMS_IN_LINE;
             }
             startIndex = Mth.clamp(startIndex, 0, getMaxStartLine() * 4);
             return true;
@@ -203,19 +227,14 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
         int k = (int) (41.0F * (Mth.clamp(startIndex / (getMaxStartLine() * 4f), 0f, 1f)));
         int lp = this.leftPos;
         int tp = this.topPos;
-        if (pMouseX >= lp + 119 && pMouseX <= lp + 119 + 12
-                && pMouseY >= tp + 15 + k && pMouseY <= tp + 15 + 15 + k)
-            return true;
-        return false;
+        return pMouseX >= lp + 119 && pMouseX <= lp + 119 + 12
+                && pMouseY >= tp + 15 + k && pMouseY <= tp + 15 + 15 + k;
     }
 
-    public boolean isInScroll(double pMouseX, double pMouseY) {
-        return false;
-    }
 
     @Override
     public boolean mouseDragged(double pMouseX, double pMouseY, int pButton, double pDragX, double pDragY) {
-        if (isDragInScroll) {
+        if (isDragInScroll && Math.abs(pDragY) > 0.2f) {
             return mouseScrolled(pMouseX, pMouseY, -pDragY);
         }
         return super.mouseDragged(pMouseX, pMouseY, pButton, pDragX, pDragY);
@@ -232,11 +251,11 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
 
     public int getMaxStartLine() {
         // return Math.max(this.menu.itemStacks.size() / 4 - 2, 0);
-        return Math.max((this.pairList.size() - 1) / 4 - 2, 0);
+        return Math.max((this.itemsHolder.size() - 1) / 4 - 2, 0);
     }
 
-    public int getItemSelectIndexInReal(double pMouseX, double pMouseY) {
-        int bid = -1;
+    public int[] getItemSelectIndexInReal(double pMouseX, double pMouseY) {
+        int[] ids = new int[]{};
         int ls = this.leftPos + 52;
         int ts = this.topPos + 14;
         double u = ((pMouseX - ls) / 16f);
@@ -244,11 +263,11 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
         if (u >= 0 && u < 4
                 && v >= 0 && v < 3) {
             {
-                bid = (int) u + (int) v * 4 + startIndex;
-                bid = bid < this.pairList.size() ? pairList.get(bid).first()[0] : -1;
+                int bid = (int) u + (int) v * 4 + startIndex;
+                ids = bid < this.itemsHolder.size() ? itemsHolder.get(bid).first() : new int[]{};
             }
         }
-        return bid;
+        return ids;
     }
 
     @Override
@@ -257,13 +276,39 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
             isDragInScroll = true;
             return true;
         }
-        int bid = getItemSelectIndexInReal(pMouseX, pMouseY);
-        if (bid > -1) {
-            this.minecraft.gameMode.handleInventoryButtonClick((this.menu).containerId, bid);
-            this.menu.itemStacks.remove(bid);
-            updateAddButtonStatus();
-            if ((pairList.size()) % 4 == 0) {
-                startIndex = startIndex > 4 ? startIndex - 4 : 0;
+        int[] ids = getItemSelectIndexInReal(pMouseX, pMouseY);
+        if (ids.length > 0) {
+            // int[] setIds = isShiftPressed ? ids : new int[]{ids[0]};
+            boolean isRemove = false;
+            // for (int bid : ids) {
+            //     // if (!isShiftPressed)
+            //     //     this.minecraft.gameMode.handleInventoryButtonClick((this.menu).containerId, SimpleMenu.FLAG_ONCE);
+            //     // this.minecraft.gameMode.handleInventoryButtonClick((this.menu).containerId, bid);
+            //     SimpleNetworkHandler.send(new GiveItemMessage((this.menu).containerId, bid,isShiftPressed));
+            //
+            //     if (!isShiftPressed && this.menu.itemStacks.get(bid).getCount() > 1) {
+            //         this.menu.itemStacks.get(bid).setCount(this.menu.itemStacks.get(bid).getCount() - 1);
+            //     } else {
+            //         this.menu.itemStacks.remove(bid);
+            //         isRemove = true;
+            //     }
+            //
+            //     // TODO:允许批量
+            //     break;
+            // }
+
+            int bid = ids[ids.length - 1];
+            SimpleNetworkHandler.send(new GiveItemMessage((this.menu).containerId, bid, isShiftPressed));
+
+            if (!isShiftPressed && this.menu.itemStacks.get(bid).getCount() > 1) {
+                this.menu.itemStacks.get(bid).setCount(this.menu.itemStacks.get(bid).getCount() - 1);
+            } else {
+                this.menu.itemStacks.remove(bid);
+                isRemove = true;
+            }
+            updateSearchStatus();
+            if (isRemove && (itemsHolder.size()) % MAX_ITEMS_IN_LINE == 0) {
+                startIndex = startIndex > MAX_ITEMS_IN_LINE ? startIndex - MAX_ITEMS_IN_LINE : 0;
             }
             return true;
         }
@@ -273,9 +318,11 @@ public class SimpleScreen extends AbstractContainerScreen<SimpleMenu> {
 
     @Override
     protected void renderTooltip(GuiGraphics pGuiGraphics, int pX, int pY) {
-        int bid = getItemSelectIndexInReal(pX, pY);
-        if (bid > -1) {
-            pGuiGraphics.renderTooltip(font, this.menu.itemStacks.get(bid), pX, pY);
+        int[] ids = getItemSelectIndexInReal(pX, pY);
+        if (ids.length > 0) {
+            pGuiGraphics.renderTooltip(font, this.menu.itemStacks.get(ids[0]), pX, pY);
         }
+
+        super.renderTooltip(pGuiGraphics,pX,pY);
     }
 }

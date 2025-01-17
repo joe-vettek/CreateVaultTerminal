@@ -11,6 +11,7 @@ import xueluoanping.vaultterminal.data.blockstate.ItemModelProvider;
 import xueluoanping.vaultterminal.data.lang.Lang_EN;
 import xueluoanping.vaultterminal.data.lang.Lang_ZH;
 import xueluoanping.vaultterminal.data.recipe.SRRecipeProvider;
+import xueluoanping.vaultterminal.data.tag.TagsDataProvider;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -26,8 +27,8 @@ public class start {
         if (event.includeServer()) {
             SafeReader.logger("Generate We Data!!!");
 
-            // TagsDataProvider blockTags = new TagsDataProvider(packOutput,lookupProvider, MODID, helper);
-            // generator.addProvider(event.includeServer(),blockTags);
+            TagsDataProvider blockTags = new TagsDataProvider(packOutput,lookupProvider, MODID, helper);
+            generator.addProvider(event.includeServer(),blockTags);
             // generator.addProvider(event.includeServer(),new FDLItemTagsProvider(packOutput, lookupProvider, blockTags.contentsGetter()));
             //
             // generator.addProvider(event.includeServer(),new LFTLootTableProvider(packOutput));

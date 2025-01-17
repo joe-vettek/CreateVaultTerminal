@@ -1,6 +1,7 @@
 package xueluoanping.vaultterminal;
 
 
+import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.data.event.GatherDataEvent;
@@ -16,6 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xueluoanping.vaultterminal.config.General;
 import xueluoanping.vaultterminal.data.start;
+import xueluoanping.vaultterminal.network.SimpleNetworkHandler;
 
 import java.util.Objects;
 
@@ -27,6 +29,7 @@ public class SafeReader {
     public static final Logger LOGGER = LogManager.getLogger();
 
     public static final boolean useLogger = Objects.equals(System.getProperty("forgegradle.runs.dev"), "true");
+    public static final String NETWORK_VERSION = "1.0";
 
     @SuppressWarnings("removal")
     public SafeReader() {
@@ -49,11 +52,12 @@ public class SafeReader {
         ModContents.BLOCK_ENTITY_TYPE_DEFERRED_REGISTER.register(FMLJavaModLoadingContext.get().getModEventBus());
         ModContents.MENU_TYPE_DEFERRED_REGISTER.register(FMLJavaModLoadingContext.get().getModEventBus());
 
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, General.COMMON_CONFIG);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, General.SERVER_CONFIG);
     }
 
 
     private void setup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(SimpleNetworkHandler::init);
         // some preinit code
         //        LOGGER.info("HELLO FROM PREINIT");
         //        LOGGER.info("DIRT BLOCK >> {}", Blocks.DIRT.getRegistryName());

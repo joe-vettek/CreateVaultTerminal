@@ -21,12 +21,7 @@ public class ItemModelProvider extends net.minecraftforge.client.model.generator
 
 	@Override
 	protected void registerModels() {
-
 		withExistingParent(itemName(ModContents.vault_terminal_item.get()), SafeReader.rl("block/vault_terminal_off")	);
-		// basicItem(SafeReader.rl("fantasy_bracelet_1"));
-		// basicItem(ModContents.safe_reader_item.get())
-		// 		.override().predicate(new ResourceLocation("damage"),1).model(new ModelFile.UncheckedModelFile(SafeReader.rl("item/fantasy_bracelet_1")))
-		// ;
 	}
 
 

@@ -9,11 +9,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.StonecutterMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
@@ -28,7 +30,10 @@ import java.util.List;
 
 public class SimpleMenu extends AbstractContainerMenu {
 
-    private final BlockEntity blockEntity;
+    public static final int FLAG_ONCE = -1;
+    public boolean shouldNextOneCount = false;
+
+    private final ICapabilityProvider capabilityProvider;
     private final BlockPos blockPos;
     private final boolean isRemote;
     public List<ItemStack> itemStacks = new ArrayList<>();
@@ -56,6 +61,7 @@ public class SimpleMenu extends AbstractContainerMenu {
             }
         }
 
+
         this.containerSlots = new ArrayList<>();
         for (int k = 0; k < 9; ++k) {
             this.containerSlots.add(this.addSlot(new Slot(playerInventory, k, 8 + k * 18, 142)));
@@ -67,13 +73,13 @@ public class SimpleMenu extends AbstractContainerMenu {
         } catch (Exception e) {
             blockEntity1 = null;
         }
-        this.blockEntity = blockEntity1;
+        this.capabilityProvider = blockEntity1;
 
 
         // TODO:这段代码是因为机械动力的保险箱不同步数据到客户端
         //  因此需要那边同步，但是这里的话，有些容器会同步，因此要注意，后续清理一下即可
-        if (blockEntity != null && !world.isClientSide()) {
-            LazyOptional<IItemHandler> capability = blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER);
+        if (capabilityProvider != null && !world.isClientSide()) {
+            LazyOptional<IItemHandler> capability = capabilityProvider.getCapability(ForgeCapabilities.ITEM_HANDLER);
             if (capability.resolve().isPresent()) {
                 List<ItemStack> itemStacks = new ArrayList<>();
                 IItemHandler iItemHandler = capability.resolve().get();
@@ -91,65 +97,68 @@ public class SimpleMenu extends AbstractContainerMenu {
 
     }
 
-    public static BlockEntity getTileEntity(Inventory playerInv, BlockPos pos) {
-        BlockEntity blockEntity = playerInv.player.getCommandSenderWorld().getBlockEntity(pos);
-        return blockEntity;
-    }
 
     @Override
     public ItemStack quickMoveStack(Player pPlayer, int pIndex) {
         return ItemStack.EMPTY;
     }
 
-    @Override
-    public boolean stillValid(@NotNull Player pPlayer) {
-        // TODO: 比较物品是否发生变化
-        return blockEntity != null
-                && pPlayer.blockPosition().getCenter().distanceToSqr(blockPos.getCenter()) <= 48
-                && blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent();
+    private boolean validCapabilityProvider() {
+        return capabilityProvider != null
+                && capabilityProvider.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().isPresent();
     }
 
     @Override
+    public boolean stillValid(@NotNull Player pPlayer) {
+        // TODO: 比较物品是否发生变化
+        return validCapabilityProvider()
+                && pPlayer.blockPosition().getCenter().distanceToSqr(blockPos.getCenter()) <= 48;
+    }
+
+    private boolean isSameItem(@NotNull ItemStack stack, @NotNull ItemStack stackB) {
+        return stackB.is(stack.getItem())
+                && ((stackB.getTag() == null && stack.getTag() == null) ||
+                (stackB.getTag() != null && stackB.getTag().equals(stack.getTag())));
+    }
+
+    private int extractItem(IItemHandler itemHandler, ItemStack stack, int count, boolean simulate) {
+        for (int i = 0; i < itemHandler.getSlots(); i++) {
+            if (count <= 0) break;
+            if (isSameItem(stack, itemHandler.getStackInSlot(i))) {
+                ItemStack extractItem = itemHandler.extractItem(i, count, simulate);
+                count -= extractItem.getCount();
+            }
+        }
+        return count;
+    }
+
+
+    @Override
     public boolean clickMenuButton(@NotNull Player pPlayer, int pId) {
+        // if (pId == FLAG_ONCE) {
+        //     shouldNextOneCount = true;
+        //     return false;
+        // }
+        SafeReader.logger(pPlayer,shouldNextOneCount);
         if (pId > -1 && pId < itemStacks.size()
-                && blockEntity != null
-                && blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().isPresent()) {
+                && validCapabilityProvider()) {
+            boolean oneCount = shouldNextOneCount;
+            shouldNextOneCount = false;
             ItemStack stack = itemStacks.get(pId);
-            IItemHandler iItemHandler = blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().get();
+            IItemHandler iItemHandler = capabilityProvider.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().get();
 
-            int count = stack.getCount();
-            for (int i = 0; i < iItemHandler.getSlots(); i++) {
-                if (count <= 0) break;
-                ItemStack stackInSlot = iItemHandler.getStackInSlot(i);
-                if (stackInSlot.is(stack.getItem())
-                        && (
-                        (stackInSlot.getTag() == null && stack.getTag() == null) ||
-                                (stackInSlot.getTag() != null && stackInSlot.getTag().equals(stack.getTag())))) {
-                    ItemStack stack1 = iItemHandler.extractItem(i, count, true);
-                    count -= stack1.getCount();
-                }
-            }
-            if (count > 0) return false;
+            int count = oneCount ? 1 : stack.getCount();
 
-            count = stack.getCount();
-            for (int i = 0; i < iItemHandler.getSlots(); i++) {
-                if (count <= 0) break;
-                ItemStack stackInSlot = iItemHandler.getStackInSlot(i);
-                if (stackInSlot.is(stack.getItem())
-                        && (
-                        (stackInSlot.getTag() == null && stack.getTag() == null) ||
-                                (stackInSlot.getTag() != null && stackInSlot.getTag().equals(stack.getTag())))) {
-                    ItemStack stack1 = iItemHandler.extractItem(i, count, false);
-                    count -= stack1.getCount();
-                }
-            }
-
+            int remainCount = extractItem(iItemHandler, stack, count, true);
+            if (remainCount >= count) return false;
+            remainCount = extractItem(iItemHandler, stack, count, false);
+            if (remainCount >= count) return false;
             // setCarried(itemStacks.get(pId));
 
-            ItemHandlerHelper.giveItemToPlayer(pPlayer, stack);
-
-            // 这里好像有bug
-            itemStacks.remove(pId);
+            ItemHandlerHelper.giveItemToPlayer(pPlayer, stack.copyWithCount(count - remainCount));
+            if (oneCount && itemStacks.get(pId).getCount() > 1) {
+                itemStacks.get(pId).setCount(itemStacks.get(pId).getCount() - 1);
+            } else itemStacks.remove(pId);
 
             return true;
         }
