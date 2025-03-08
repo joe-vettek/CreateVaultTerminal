@@ -1,4 +1,5 @@
 {
   "block.create_vault_terminal.vault_terminal": "Vault Terminal",
-  "menu.create_safe_reader.tittle": "Connected - %s"
+  "hint.create_vault_terminal.not_open": "Can not open the storage block!",
+  "menu.create_vault_terminal.tittle": "\"%s\""
 }

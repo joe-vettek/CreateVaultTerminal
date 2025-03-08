@@ -11,7 +11,7 @@ import net.minecraftforge.client.model.generators.BlockStateProvider;
 import net.minecraftforge.client.model.generators.ConfiguredModel;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import xueluoanping.vaultterminal.ModContents;
-import xueluoanping.vaultterminal.SafeReader;
+import xueluoanping.vaultterminal.VaultTerminal;
 import xueluoanping.vaultterminal.block.ReaderBlock;
 
 import java.util.List;
@@ -23,7 +23,7 @@ public class BlockStatesDataProvider extends BlockStateProvider {
     private final ExistingFileHelper existingFileHelper;
 
     public BlockStatesDataProvider(PackOutput output, ExistingFileHelper existingFileHelper) {
-        super(output, SafeReader.MOD_ID, existingFileHelper);
+        super(output, VaultTerminal.MOD_ID, existingFileHelper);
         this.existingFileHelper = existingFileHelper;
     }
 
@@ -47,7 +47,7 @@ public class BlockStatesDataProvider extends BlockStateProvider {
     }
 
     public static ResourceLocation resourceBlock(String path) {
-        return SafeReader.rl("block/" + path);
+        return VaultTerminal.rl("block/" + path);
     }
 
 

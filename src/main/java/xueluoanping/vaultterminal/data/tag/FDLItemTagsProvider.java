@@ -5,7 +5,7 @@ import net.minecraft.data.PackOutput;
 import net.minecraft.data.tags.ItemTagsProvider;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.level.block.Block;
-import xueluoanping.vaultterminal.SafeReader;
+import xueluoanping.vaultterminal.VaultTerminal;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -17,7 +17,7 @@ public class FDLItemTagsProvider extends ItemTagsProvider {
 
     @Override
     protected void addTags(HolderLookup.Provider provider) {
-        var tag= ItemTags.create(SafeReader.rl("drawers"));
+        var tag= ItemTags.create(VaultTerminal.rl("drawers"));
         // this.tag(tag).add(ModContents.fluiddrawer.get());
     }
 }

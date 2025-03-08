@@ -19,10 +19,10 @@ import xueluoanping.vaultterminal.client.SimpleMenu;
 
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
 public class ModContents {
-    public static final DeferredRegister<Item> ITEM_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.ITEMS, SafeReader.MOD_ID);
-    public static final DeferredRegister<Block> BLOCK_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.BLOCKS, SafeReader.MOD_ID);
-    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPE_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, SafeReader.MOD_ID);
-    public static final DeferredRegister<MenuType<?>> MENU_TYPE_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.MENU_TYPES, SafeReader.MOD_ID);
+    public static final DeferredRegister<Item> ITEM_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.ITEMS, VaultTerminal.MOD_ID);
+    public static final DeferredRegister<Block> BLOCK_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.BLOCKS, VaultTerminal.MOD_ID);
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPE_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, VaultTerminal.MOD_ID);
+    public static final DeferredRegister<MenuType<?>> MENU_TYPE_DEFERRED_REGISTER = DeferredRegister.create(ForgeRegistries.MENU_TYPES, VaultTerminal.MOD_ID);
 
 
     public static final RegistryObject<Block> vault_terminal = BLOCK_DEFERRED_REGISTER.register("vault_terminal", () -> new ReaderBlock(BlockBehaviour.Properties.of()

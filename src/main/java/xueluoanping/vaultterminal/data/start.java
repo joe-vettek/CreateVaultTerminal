@@ -5,7 +5,7 @@ import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import net.minecraftforge.data.event.GatherDataEvent;
-import xueluoanping.vaultterminal.SafeReader;
+import xueluoanping.vaultterminal.VaultTerminal;
 import xueluoanping.vaultterminal.data.blockstate.BlockStatesDataProvider;
 import xueluoanping.vaultterminal.data.blockstate.ItemModelProvider;
 import xueluoanping.vaultterminal.data.lang.Lang_EN;
@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 
 public class start {
-    public final static String MODID = SafeReader.MOD_ID;
+    public final static String MODID = VaultTerminal.MOD_ID;
 
     public static void dataGen(GatherDataEvent event) {
         DataGenerator generator = event.getGenerator();
@@ -25,7 +25,7 @@ public class start {
         PackOutput packOutput = generator.getPackOutput();
         CompletableFuture<HolderLookup.Provider> lookupProvider = event.getLookupProvider();
         if (event.includeServer()) {
-            SafeReader.logger("Generate We Data!!!");
+            VaultTerminal.logger("Generate We Data!!!");
 
             TagsDataProvider blockTags = new TagsDataProvider(packOutput,lookupProvider, MODID, helper);
             generator.addProvider(event.includeServer(),blockTags);

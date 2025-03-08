@@ -7,7 +7,7 @@ import java.util.regex.PatternSyntaxException;
 
 public class General {
     public static ForgeConfigSpec SERVER_CONFIG;
-    public static ForgeConfigSpec.BooleanValue collectItemNearby;
+    // public static ForgeConfigSpec.BooleanValue CanPlaceItem;
 
     public static boolean isValidRegex(Object o) {
         if (!(o instanceof String regex)) {
@@ -25,8 +25,8 @@ public class General {
         ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
 
         COMMON_BUILDER.comment("Play settings").push("Play");
-        collectItemNearby = COMMON_BUILDER.comment("Can Place item in.")
-                .define("CanPlaceItem", true);
+        // CanPlaceItem = COMMON_BUILDER.comment("Can Place item in.")
+        //         .define("CanPlaceItem", true);
 
         COMMON_BUILDER.pop();
 

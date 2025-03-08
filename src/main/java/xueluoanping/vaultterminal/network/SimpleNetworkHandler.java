@@ -1,23 +1,17 @@
 package xueluoanping.vaultterminal.network;
 
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLLoader;
-import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-import xueluoanping.vaultterminal.SafeReader;
-
-import java.util.List;
+import xueluoanping.vaultterminal.VaultTerminal;
 
 public final class SimpleNetworkHandler {
     public static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
-            .named(SafeReader.rl("main"))
-            .networkProtocolVersion(() -> SafeReader.NETWORK_VERSION)
-            .serverAcceptedVersions(SafeReader.NETWORK_VERSION::equals)
-            .clientAcceptedVersions(SafeReader.NETWORK_VERSION::equals)
+            .named(VaultTerminal.rl("main"))
+            .networkProtocolVersion(() -> VaultTerminal.NETWORK_VERSION)
+            .serverAcceptedVersions(VaultTerminal.NETWORK_VERSION::equals)
+            .clientAcceptedVersions(VaultTerminal.NETWORK_VERSION::equals)
             .simpleChannel();
 
     public static void init() {

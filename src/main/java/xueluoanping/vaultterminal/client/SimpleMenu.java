@@ -1,15 +1,17 @@
 package xueluoanping.vaultterminal.client;
 
+import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.inventory.StonecutterMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -21,7 +23,7 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import org.jetbrains.annotations.NotNull;
 import xueluoanping.vaultterminal.ModContents;
-import xueluoanping.vaultterminal.SafeReader;
+import xueluoanping.vaultterminal.VaultTerminal;
 import xueluoanping.vaultterminal.block.ReaderBlock;
 
 import javax.annotation.Nullable;
@@ -43,9 +45,13 @@ public class SimpleMenu extends AbstractContainerMenu {
 
     public SimpleMenu(int windowId, Inventory playerInv, @NotNull FriendlyByteBuf data) {
         this(ModContents.containerType.get(), windowId, playerInv, data.readBlockPos(), data.readEnum(Direction.class));
+        VaultTerminal.logger(data);
         int size = data.readVarInt();
         for (int i = 0; i < size; i++) {
             itemStacks.add(data.readItem());
+            if(itemStacks.get(i).isEmpty()){
+                VaultTerminal.logger(i);
+            }
         }
     }
 
@@ -67,30 +73,11 @@ public class SimpleMenu extends AbstractContainerMenu {
             this.containerSlots.add(this.addSlot(new Slot(playerInventory, k, 8 + k * 18, 142)));
         }
 
-        BlockEntity blockEntity1;
-        try {
-            blockEntity1 = playerInventory.player.level().getBlockEntity(pos.relative(facing.getOpposite()));
-        } catch (Exception e) {
-            blockEntity1 = null;
-        }
-        this.capabilityProvider = blockEntity1;
+        Pair<ICapabilityProvider, List<ItemStack>> pairIL = ReaderBlock.getCapabilityProviderAndTItemList(world, pos, facing);
 
-
-        // TODO:这段代码是因为机械动力的保险箱不同步数据到客户端
-        //  因此需要那边同步，但是这里的话，有些容器会同步，因此要注意，后续清理一下即可
-        if (capabilityProvider != null && !world.isClientSide()) {
-            LazyOptional<IItemHandler> capability = capabilityProvider.getCapability(ForgeCapabilities.ITEM_HANDLER);
-            if (capability.resolve().isPresent()) {
-                List<ItemStack> itemStacks = new ArrayList<>();
-                IItemHandler iItemHandler = capability.resolve().get();
-                for (int j = 0; j < iItemHandler.getSlots(); j++) {
-                    ItemStack stackInSlot = iItemHandler.getStackInSlot(j);
-                    if (!stackInSlot.isEmpty()) {
-                        itemStacks.add(stackInSlot);
-                    }
-                }
-                this.itemStacks.addAll(itemStacks);
-            }
+        this.capabilityProvider = pairIL.left();
+        if (!world.isClientSide()) {
+            this.itemStacks.addAll(pairIL.value());
         }
 
         this.isRemote = world.isClientSide();
@@ -99,7 +86,7 @@ public class SimpleMenu extends AbstractContainerMenu {
 
 
     @Override
-    public ItemStack quickMoveStack(Player pPlayer, int pIndex) {
+    public @NotNull ItemStack quickMoveStack(@NotNull Player pPlayer, int pIndex) {
         return ItemStack.EMPTY;
     }
 
@@ -139,16 +126,15 @@ public class SimpleMenu extends AbstractContainerMenu {
         //     shouldNextOneCount = true;
         //     return false;
         // }
-        SafeReader.logger(pPlayer,shouldNextOneCount);
         if (pId > -1 && pId < itemStacks.size()
                 && validCapabilityProvider()) {
             boolean oneCount = shouldNextOneCount;
             shouldNextOneCount = false;
-            ItemStack stack = itemStacks.get(pId);
+            ItemStack stack = itemStacks.get(pId).copy();
+
+            int count = oneCount ? 1 : Math.min(stack.getCount(),stack.getMaxStackSize());
+
             IItemHandler iItemHandler = capabilityProvider.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().get();
-
-            int count = oneCount ? 1 : stack.getCount();
-
             int remainCount = extractItem(iItemHandler, stack, count, true);
             if (remainCount >= count) return false;
             remainCount = extractItem(iItemHandler, stack, count, false);

@@ -9,14 +9,14 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import xueluoanping.vaultterminal.ModContents;
-import xueluoanping.vaultterminal.SafeReader;
+import xueluoanping.vaultterminal.VaultTerminal;
 
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientSetup {
 
     @SubscribeEvent
     public static void onClientEvent(FMLClientSetupEvent event) {
-        SafeReader.logger("Register Client");
+        VaultTerminal.logger("Register Client");
         event.enqueueWork(() -> {
             MenuScreens.register(ModContents.containerType.get(), SimpleScreen::new);
 

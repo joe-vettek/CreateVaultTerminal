@@ -1,7 +1,6 @@
 package xueluoanping.vaultterminal;
 
 
-import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.data.event.GatherDataEvent;
@@ -22,8 +21,8 @@ import xueluoanping.vaultterminal.network.SimpleNetworkHandler;
 import java.util.Objects;
 
 // The value here should match an entry in the META-INF/mods.toml file
-@Mod(SafeReader.MOD_ID)
-public class SafeReader {
+@Mod(VaultTerminal.MOD_ID)
+public class VaultTerminal {
     public static final String MOD_ID = "create_vault_terminal";
     // Directly reference a log4j logger.
     public static final Logger LOGGER = LogManager.getLogger();
@@ -32,7 +31,7 @@ public class SafeReader {
     public static final String NETWORK_VERSION = "1.0";
 
     @SuppressWarnings("removal")
-    public SafeReader() {
+    public VaultTerminal() {
         // Register the setup method for modloading
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
         // Register the enqueueIMC method for modloading
@@ -126,6 +125,6 @@ public class SafeReader {
     }
 
     public static ResourceLocation rl(String name) {
-        return new ResourceLocation(SafeReader.MOD_ID, name);
+        return new ResourceLocation(VaultTerminal.MOD_ID, name);
     }
 }

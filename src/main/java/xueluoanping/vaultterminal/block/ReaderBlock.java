@@ -1,8 +1,10 @@
 package xueluoanping.vaultterminal.block;
 
 
+import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -27,15 +29,19 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.NotNull;
 import xueluoanping.vaultterminal.ModContents;
+import xueluoanping.vaultterminal.VaultTerminal;
 import xueluoanping.vaultterminal.block.base.SimpleHorizontalBlock;
 import xueluoanping.vaultterminal.client.SimpleMenu;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 
 public class ReaderBlock extends SimpleHorizontalBlock {
@@ -64,63 +70,102 @@ public class ReaderBlock extends SimpleHorizontalBlock {
     }
 
     @Override
-    public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit) {
+    public @NotNull InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit) {
         if (!pState.getValue(OPEN)) {
-            if (pPlayer.getItemInHand(pHand).isEmpty()
-                    && pPlayer instanceof ServerPlayer serverPlayer) {
-                pLevel.setBlockAndUpdate(pPos, pState.setValue(OPEN, true));
+            if (pPlayer.getItemInHand(pHand).isEmpty()) {
+                if (pPlayer instanceof ServerPlayer serverPlayer) {
+                    pLevel.setBlockAndUpdate(pPos, pState.setValue(OPEN, true));
+                    Direction facing = pState.getValue(FACING);
+                    BlockState blockState = pLevel.getBlockState(pPos.relative(facing.getOpposite()));
+                    Item item = Item.byBlock(blockState.getBlock());
+                    Component component = blockState.hasBlockEntity() && item != Items.AIR ?
+                            item.getName(item.getDefaultInstance()) : Component.empty();
 
-                Direction value = pState.getValue(FACING);
-                BlockState blockState = pLevel.getBlockState(pPos.relative(value.getOpposite()));
-                NetworkHooks.openScreen(
-                        serverPlayer, new MenuProvider() {
-                            @Override
-                            public @NotNull Component getDisplayName() {
-                                Item item = Item.byBlock(blockState.getBlock());
-                                if (blockState.hasBlockEntity()&&item!=Items.AIR) {
-                                    return item.getName(item.getDefaultInstance());
-                                }
-                                return Component.empty();
-                                // return Component.translatable("menu.create_safe_reader.tittle");
-                            }
-
-                            @Override
-                            public @NotNull AbstractContainerMenu createMenu(int pContainerId, @NotNull Inventory pPlayerInventory, @NotNull Player pPlayer) {
-                                return new SimpleMenu(ModContents.containerType.get(), pContainerId, pPlayerInventory, pPos, value);
-                            }
-
-                        }, friendlyByteBuf -> {
-                            friendlyByteBuf.writeBlockPos(pPos);
-                            friendlyByteBuf.writeEnum(value);
-                            BlockEntity blockEntity1;
-                            try {
-                                blockEntity1 = pLevel.getBlockEntity(pPos.relative(value.getOpposite()));
-                            } catch (Exception e) {
-                                blockEntity1 = null;
-                            }
-                            if (blockEntity1 != null) {
-                                LazyOptional<IItemHandler> capability = blockEntity1.getCapability(ForgeCapabilities.ITEM_HANDLER);
-                                if (capability.resolve().isPresent()) {
-                                    IItemHandler iItemHandler = capability.resolve().get();
-                                    ArrayList<ItemStack> itemStacks = new ArrayList<>();
-                                    for (int j = 0; j < iItemHandler.getSlots(); j++) {
-                                        ItemStack stackInSlot = iItemHandler.getStackInSlot(j);
-                                        if (!stackInSlot.isEmpty()) {
-                                            itemStacks.add(stackInSlot);
-                                        }
-                                    }
-                                    friendlyByteBuf.writeVarInt(itemStacks.size());
-                                    for (ItemStack stackInSlot : itemStacks) {
-                                        friendlyByteBuf.writeItemStack(stackInSlot, false);
-                                    }
-                                }
-                            }
-                        }
-                );
+                    Pair<ICapabilityProvider, List<ItemStack>> pairIL = ReaderBlock.getCapabilityProviderAndTItemList(pLevel, pPos, facing);
+                    if (pairIL.first() != null) {
+                        NetworkHooks.openScreen(
+                                serverPlayer, new SimpleMenuProvider(component, pPos, facing),
+                                new SimpleFriendlyByteBufConsumer(pPos, facing, pairIL.right()));
+                    } else {
+                        pPlayer.displayClientMessage(Component.translatable("hint.create_vault_terminal.not_open"), true);
+                        pLevel.setBlockAndUpdate(pPos, pState.setValue(OPEN, false));
+                    }
+                }
+                return InteractionResult.sidedSuccess(pLevel.isClientSide);
             }
         }
         return super.use(pState, pLevel, pPos, pPlayer, pHand, pHit);
     }
 
 
+    public record SimpleMenuProvider(Component component, BlockPos blockPos,
+                                     Direction direction) implements MenuProvider {
+
+        @Override
+        public @NotNull Component getDisplayName() {
+            return Component.translatable("menu.create_vault_terminal.tittle", this.component);
+        }
+
+        @Override
+        public @NotNull AbstractContainerMenu createMenu(int pContainerId, @NotNull Inventory pPlayerInventory, @NotNull Player pPlayer) {
+            return new SimpleMenu(ModContents.containerType.get(), pContainerId, pPlayerInventory, blockPos, direction);
+        }
+    }
+
+    public record SimpleFriendlyByteBufConsumer(BlockPos blockPos,
+                                                Direction facing,
+                                                List<ItemStack> itemStacks) implements Consumer<FriendlyByteBuf> {
+
+        @Override
+        public void accept(FriendlyByteBuf friendlyByteBuf) {
+            friendlyByteBuf.writeBlockPos(blockPos);
+            friendlyByteBuf.writeEnum(facing);
+            friendlyByteBuf.writeVarInt(itemStacks.size());
+            for (ItemStack stackInSlot : itemStacks) {
+                friendlyByteBuf.writeItemStack(stackInSlot, false);
+            }
+        }
+    }
+
+    public static Pair<ICapabilityProvider, List<ItemStack>> getCapabilityProviderAndTItemList(Level world, BlockPos pos, Direction facing) {
+        List<ItemStack> itemStacks = new ArrayList<>();
+        ICapabilityProvider capabilityProvider;
+        try {
+            capabilityProvider = world.getBlockEntity(pos.relative(facing.getOpposite()));
+        } catch (Exception e) {
+            capabilityProvider = null;
+        }
+
+        // Client would get the data from server
+        if (capabilityProvider != null) {
+            LazyOptional<IItemHandler> capability = capabilityProvider.getCapability(ForgeCapabilities.ITEM_HANDLER);
+            if (capability.resolve().isPresent() && !world.isClientSide()) {
+                IItemHandler iItemHandler = capability.resolve().get();
+                for (int j = 0; j < iItemHandler.getSlots(); j++) {
+                    ItemStack stackInSlot = iItemHandler.getStackInSlot(j);
+                    if (!stackInSlot.isEmpty()) {
+                        ItemStack copy = stackInSlot.copy();
+                        if (copy.getCount() < Byte.MAX_VALUE) {
+                            itemStacks.add(copy);
+                        } else {
+                            int remainingCount = copy.getCount();
+                            while (remainingCount > 0) {
+                                // byte not allow too big values
+                                // int max=Byte.MAX_VALUE;
+                                int splitCount = Math.min(remainingCount, 64);
+                                ItemStack splitStack = copy.copy();
+                                splitStack.setCount(splitCount);
+                                itemStacks.add(splitStack);
+                                remainingCount -= splitCount;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // not open for not valid block
+                capabilityProvider = null;
+            }
+        }
+        return Pair.of(capabilityProvider, itemStacks);
+    }
 }
